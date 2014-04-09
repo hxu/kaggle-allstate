@@ -1,0 +1,3 @@
+"""
+Last quoted plan benchmark
+"""

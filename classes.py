@@ -5,6 +5,9 @@ import numpy as np
 
 
 # Set up a default logger with a more informative format
+from sklearn.metrics import accuracy_score
+
+
 logger = logging.getLogger('allstate')
 logger.setLevel(logging.DEBUG)
 log_formatter = logging.Formatter('%(asctime)s - %(module)s - %(levelname)s - %(message)s',
@@ -31,6 +34,28 @@ def get_train_data():
     return pd.read_csv('data/train.csv')
 
 
+def get_test_data():
+    return pd.read_csv('data/test_v2.csv')
+
+
+def make_submission(df, filename):
+    path = 'submissions/' + filename
+    cols = ['customer_ID', 'plan']
+    for c in cols:
+        assert c in df, "Column {} must be in the data frame".format(c)
+    df.to_csv(path, cols=cols, index=False)
+
+
+def concatenate_plan(df):
+    """
+    Concatenates the plan columns in a data frame.  Modifies the data frame
+    """
+    string_cols = [df[xx].astype(np.str) for xx in 'ABCDEFG']
+    codes = reduce(lambda x, y: x + y, string_cols)
+    df['plan'] = codes
+    return df
+
+
 def get_last_observed_plan(df, concatenate_columns=True, additional_cols=None):
     """
     Given a data frame with at least columns customer_ID, shopping_pt, and A-G,
@@ -51,9 +76,7 @@ def get_last_observed_plan(df, concatenate_columns=True, additional_cols=None):
 
     if concatenate_columns:
         # I think this is faster than apply
-        string_cols = [last_plans[xx].astype(np.str) for xx in 'ABCDEFG']
-        codes = reduce(lambda x, y: x + y, string_cols)
-        last_plans['plan'] = codes
+        last_plans = concatenate_plan(last_plans)
         return_cols = ['customer_ID', 'plan']
     else:
         return_cols = ['customer_ID', 'A', 'B', 'C', 'D', 'E', 'F', 'G']
@@ -107,3 +130,23 @@ def truncate(df):
     mask = pd.merge(df[['customer_ID', 'shopping_pt']], truncate_points, how='left')
     mask = mask['shopping_pt'] <= mask['truncate']
     return df.loc[mask]
+
+
+def get_actual_plan(df):
+    """
+    Given a data frame of training data, get the actual plan for cross validation
+    """
+    purchases = df[df['record_type'] == 1]
+    res = concatenate_plan(purchases)
+    return res[['customer_ID', 'plan']]
+
+
+def score_df(prediction, actual):
+    """
+    Expects two data frames with customer_ID and plan columns.
+
+    Does a join on two data frames using customer_ID and checks if the plans are the same.
+    Probably paranoid, but just in case the customer_IDs somehow get out of order
+    """
+    merged = pd.merge(prediction, actual, on='customer_ID', suffixes=('_p', '_a'))
+    return accuracy_score(merged['plan_a'], merged['plan_p'])

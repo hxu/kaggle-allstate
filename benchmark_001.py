@@ -8,7 +8,7 @@ train = classes.get_train_data()
 actuals = classes.get_actual_plan(train)
 
 scores = []
-# Score seems to be a big high on training, about .547-.548
+# Score seems to be a bit high on training, about .547-.548
 for n in range(5):
     truncated = classes.truncate(train)
     prediction = classes.get_last_observed_plan(truncated)

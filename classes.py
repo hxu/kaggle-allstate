@@ -56,6 +56,18 @@ def concatenate_plan(df):
     return df
 
 
+def split_plan(df):
+    """
+    Reverse of concatenate_plan.  Splits the plan column back into the letters
+
+    Mutates the data frame
+    """
+    letters = 'ABCDEFG'
+    for i, l in enumerate(letters):
+        df[l] = df['plan'].apply(lambda x: x[i])
+    return df
+
+
 def get_last_observed_plan(df, concatenate_columns=True, additional_cols=None):
     """
     Given a data frame with at least columns customer_ID, shopping_pt, and A-G,

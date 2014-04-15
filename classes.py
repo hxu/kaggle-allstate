@@ -65,9 +65,9 @@ def get_last_observed_plan(df, concatenate_columns=True, additional_cols=None):
     return last_plans[return_cols]
 
 
-def truncate(df, p=0.3):
+def get_truncation_point(df, p=0.3):
     """
-    For a data frame of the training data, truncate each customer's series of shopping
+    For a data frame of the training data, get the truncation point for each customer's series of shopping
     points to match the distribution found in the test data set.
 
     The test set histories are truncated. If the real process went something like:
@@ -93,4 +93,17 @@ def truncate(df, p=0.3):
     # So the observations then need to be truncated to the min of the truncate point or the last_observed shopping_pt
     truncate_points = pd.Series(map(min, zip(truncate_points, last_observed)))
     truncate_points.name = 'truncate'
-    return pd.concat(purchased_plans['customer_ID'], truncate_points)
+    return pd.concat([purchased_plans['customer_ID'], truncate_points], axis=1)
+
+
+def truncate(df):
+    """
+    Truncate a training data frame
+
+    Truncation points are a data frame with one row for each customer_ID
+    df has one row for each observation.
+    """
+    truncate_points = get_truncation_point(df)
+    mask = pd.merge(df[['customer_ID', 'shopping_pt']], truncate_points, how='left')
+    mask = mask['shopping_pt'] <= mask['truncate']
+    return df.loc[mask]

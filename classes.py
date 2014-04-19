@@ -162,3 +162,17 @@ def score_df(prediction, actual):
     """
     merged = pd.merge(prediction, actual, on='customer_ID', suffixes=('_p', '_a'))
     return accuracy_score(merged['plan_a'], merged['plan_p'])
+
+
+def col_score_df(prediction, actual):
+    """
+    Same as score_df, but expects cols A-E
+    """
+    merged = pd.merge(prediction, actual, on='customer_ID', suffixes=('_p', '_a'))
+    cols = 'ABCDEFG'
+    scores = []
+    for c in cols:
+        this_score = accuracy_score(merged[c + '_a'], merged[c + '_p'])
+        logger.info("Feature {}, score {}".format(c, this_score))
+        scores.append((c, this_score))
+    return scores

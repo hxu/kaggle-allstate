@@ -2,29 +2,29 @@ from __future__ import division
 import logging
 import pandas as pd
 import numpy as np
-
-
-# Set up a default logger with a more informative format
+from sklearn.cross_validation import ShuffleSplit
 from sklearn.metrics import accuracy_score
 
 
+# Set up a default logger with a more informative format
 logger = logging.getLogger('allstate')
-logger.setLevel(logging.DEBUG)
-log_formatter = logging.Formatter('%(asctime)s - %(module)s - %(levelname)s - %(message)s',
-                                  datefmt='%Y-%m-%d %H:%M:%S')
 
-# Log to file, particularly useful for spot instances, since the
-# log will persist even if the instance is killed (if you use a separate EBS volume)
-logfile = logging.FileHandler('run.log')
-logfile.setLevel(logging.DEBUG)
-logfile.setFormatter(log_formatter)
-# Log to console
-logstream = logging.StreamHandler()
-logstream.setLevel(logging.INFO)
-logstream.setFormatter(log_formatter)
+if len(logger.handlers) == 0:
+    logger.setLevel(logging.DEBUG)
+    log_formatter = logging.Formatter('%(asctime)s - %(module)s - %(levelname)s - %(message)s',
+                                      datefmt='%Y-%m-%d %H:%M:%S')
+    # Log to file, particularly useful for spot instances, since the
+    # log will persist even if the instance is killed (if you use a separate EBS volume)
+    logfile = logging.FileHandler('run.log')
+    logfile.setLevel(logging.DEBUG)
+    logfile.setFormatter(log_formatter)
+    # Log to console
+    logstream = logging.StreamHandler()
+    logstream.setLevel(logging.INFO)
+    logstream.setFormatter(log_formatter)
 
-logger.addHandler(logfile)
-logger.addHandler(logstream)
+    logger.addHandler(logfile)
+    logger.addHandler(logstream)
 
 
 def get_train_data():
@@ -68,6 +68,13 @@ def split_plan(df):
     return df
 
 
+def get_last_observed_point(df):
+    # Assumes that the index is customer_ID
+    max_pts = pd.DataFrame(df.groupby('customer_ID', as_index=False)['shopping_pt'].max())
+    last_plans = pd.merge(max_pts, df, how='left')
+    return last_plans
+
+
 def get_last_observed_plan(df, concatenate_columns=True, additional_cols=None):
     """
     Given a data frame with at least columns customer_ID, shopping_pt, and A-G,
@@ -82,9 +89,7 @@ def get_last_observed_plan(df, concatenate_columns=True, additional_cols=None):
     for c in cols:
         assert c in df, "Column {} not found in data frame".format(c)
 
-    # Assumes that the index is customer_ID
-    max_pts = pd.DataFrame(df.groupby('customer_ID', as_index=False)['shopping_pt'].max())
-    last_plans = pd.merge(max_pts, df, how='left')
+    last_plans = get_last_observed_point(df)
 
     if concatenate_columns:
         # I think this is faster than apply
@@ -176,3 +181,17 @@ def col_score_df(prediction, actual):
         logger.info("Feature {}, score {}".format(c, this_score))
         scores.append((c, this_score))
     return scores
+
+
+def train_test_split(df, test_size=0.5):
+    """
+    train_test_split by customer_ID
+
+    Using the default sklearn version is also slow and gets rid of indices
+    """
+    ids = df['customer_ID'].unique()
+    cv = ShuffleSplit(ids.shape[0], test_size=test_size)
+    train, test = next(iter(cv))
+    train_ids = ids[train]
+    test_ids = ids[test]
+    return df[df['customer_ID'].isin(train_ids)], df[df['customer_ID'].isin(test_ids)]

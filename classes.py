@@ -146,6 +146,7 @@ def truncate(df):
     truncate_points = get_truncation_point(df)
     mask = pd.merge(df[['customer_ID', 'shopping_pt']], truncate_points, how='left')
     mask = mask['shopping_pt'] <= mask['truncate']
+    mask.index = df.index
     return df.loc[mask]
 
 

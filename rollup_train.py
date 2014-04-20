@@ -13,9 +13,9 @@ def rollup_data(x):
             else:
                 variables[prior_var+str(possible_prior)]=[np.nan]
     A=pd.DataFrame(variables)
-    A.to_csv("data/rolled_up.csv",header='csv',index=False,mode='a')
+    A.to_csv("data/rolled_up1.csv",header=False,index=False,mode='a')
     print variables['customer_ID']
-    print A.keys()
+    print A
     return
 return_pd=truncate(data).groupby('customer_ID').apply(rollup_data)
 #return_pd.to_csv("data/rolled_up.csv",index=False)

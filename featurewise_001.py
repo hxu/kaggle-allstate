@@ -72,3 +72,39 @@ last_obs = classes.concatenate_plan(last_obs)
 classes.score_df(last_obs, actuals)
 # Slightly lower accuracy on G compared to last observed
 classes.col_score_df(last_obs, actuals)
+
+
+#######
+# What if we predict all plan components?
+#######
+
+logger.info("Transforming data")
+# Transform the data into something that we can give to a learning algorithm
+train_y = train.loc[train['record_type'] == 1, list('ABCDEFG')]
+train_data = train.loc[train['record_type'] == 0, ['customer_ID', 'shopping_pt', 'record_type'] + list('ABCDEFG')]
+train_x = classes.get_last_observed_point(train_data)[list('ABCDEFG')]
+
+# Responses need to be encoded to binary columns
+y_encoder = OneHotEncoder()
+train_y = y_encoder.fit_transform(train_y).toarray()
+
+# train_x is a df with columsn A-F
+# Encode each column of train_x as a one-hot binary column.
+f_encoder = OneHotEncoder()
+est = RandomForestClassifier(n_estimators=150, verbose=3, oob_score=True)
+train_x = f_encoder.fit_transform(train_x).toarray()
+# OOB score is 0.93
+logger.info("Training classifier")
+est.fit(train_x, train_y)
+
+logger.info("Transforming test data")
+test_y = test.loc[test['record_type'] == 1, list('ABCDEFG')]
+test_data = classes.truncate(test)
+test_x = classes.get_last_observed_point(test_data)[['customer_ID'] + list('ABCDEFG')]
+
+test_y = y_encoder.transform(test_y).toarray()
+test_x = f_encoder.transform(test_x[list('ABCDEFG')]).toarray()
+
+pred = est.predict(test_x)
+
+# also seems to be lower than the last observed plan, 0.543 accuracy vs 0.547

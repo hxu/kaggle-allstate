@@ -36,3 +36,5 @@ Some questions to explore:
 
  - How common is it for users' information to change (e.g. car value, etc.)
  - How condensed are the interactions in time?  Do interactions all tend to happen on the same day, or on multiple days?
+
+-rollup.py creates lagged versions of all variables; it's kind of slow.

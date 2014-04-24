@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from sklearn.cross_validation import ShuffleSplit
 from sklearn.metrics import accuracy_score
-
+from sklearn.preprocessing import LabelBinarizer,LabelEncoder
 
 # Set up a default logger with a more informative format
 logger = logging.getLogger('allstate')
@@ -196,3 +196,21 @@ def train_test_split(df, test_size=0.5):
     train_ids = ids[train]
     test_ids = ids[test]
     return df[df['customer_ID'].isin(train_ids)], df[df['customer_ID'].isin(test_ids)]
+class encode_cat():
+    '''Wraps labelbinarizer and encoder together'''
+    def __init__(self):
+        self.LB=LabelBinarizer()
+        self.LE=LabelEncoder()
+        return
+    def fit(self,X,y=None):
+        self.LE.fit(X)
+        self.LB.fit(self.LE.transform(X))
+        return
+    def transform(self,X,y=None):
+        return(self.LB.transform(self.LE.transform(X)))
+    def fit_transform(self,X,y=None):
+        self.LE.fit(X)
+        self.LB.fit(self.LE.transform(X))
+        return(self.LB.transform(self.LE.transform(X)))
+    def inverse_transform(self,X,y=None):
+        return(self.LE.inverse_transform(self.LB.inverse_transform(X)))

@@ -2,8 +2,10 @@ from __future__ import division
 import logging
 import pandas as pd
 import numpy as np
+from sklearn.base import BaseEstimator
 from sklearn.cross_validation import ShuffleSplit
 from sklearn.metrics import accuracy_score
+from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelBinarizer,LabelEncoder
 
 # Set up a default logger with a more informative format
@@ -196,6 +198,8 @@ def train_test_split(df, test_size=0.5):
     train_ids = ids[train]
     test_ids = ids[test]
     return df[df['customer_ID'].isin(train_ids)], df[df['customer_ID'].isin(test_ids)]
+
+
 class encode_cat():
     '''Wraps labelbinarizer and encoder together'''
     def __init__(self):
@@ -214,3 +218,39 @@ class encode_cat():
         return(self.LB.transform(self.LE.transform(X)))
     def inverse_transform(self,X,y=None):
         return(self.LE.inverse_transform(self.LB.inverse_transform(X)))
+
+
+class LabelFixerMixin(object):
+    """
+    Fix signatures on LabelEncoder and LabelBinarizer
+    """
+    def fit(self, X, y=None):
+        return super(LabelFixerMixin, self).fit(X)
+
+    def transform(self, X, y=None):
+        return super(LabelFixerMixin, self).transform(X)
+
+    def fit_transform(self, X, y=None):
+        return super(LabelFixerMixin, self).fit_transform(X)
+
+
+class FixLabelEncoder(LabelFixerMixin, LabelEncoder):
+    pass
+
+
+class FixLabelBinarizer(LabelFixerMixin, LabelBinarizer):
+    pass
+
+
+class EncoderBinarizer(Pipeline):
+    """
+    Transforms the state into binary columns
+
+    Basically the same as the encode_cat, but I think conforms more to the
+    Scikit API
+    """
+    def __init__(self):
+        super(EncoderBinarizer, self).__init__([
+            ('encode', FixLabelEncoder()),
+            ('binarize', FixLabelBinarizer())
+        ])

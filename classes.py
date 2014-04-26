@@ -223,6 +223,7 @@ class encode_cat():
 class LabelFixerMixin(object):
     """
     Fix signatures on LabelEncoder and LabelBinarizer
+    This enables the classes to be used in a Pipeline
     """
     def fit(self, X, y=None):
         return super(LabelFixerMixin, self).fit(X)

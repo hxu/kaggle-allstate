@@ -87,23 +87,54 @@ class ColumnExtractor(BaseEstimator, TransformerMixin):
             return res.reshape((X.shape[0], 1))
 
 
-class RiskFactorEncoder(classes.EncoderBinarizer):
+class FillEncoderBinarizer(classes.EncoderBinarizer):
     """
-    Handles the risk factor column.  Takes values of 1-4 and NA.  We'll encode NA as 0, then run it through
-    the EncoderBinarizer transformer
+    First fills in NAs in a column, then runs it through the EncoderBinarizer
     """
-    def __init__(self, fill_value=0):
-        super(RiskFactorEncoder, self).__init__()
-        self.fill_value = 0
+    def __init__(self, column, fill_value=0):
+        super(FillEncoderBinarizer, self).__init__()
+        self.fill_value = fill_value
+        self.column = column
 
-    def fit(self, X, y=None):
-        col = X['risk_factor'].fillna(self.fill_value)
-        return super(RiskFactorEncoder, self).fit(col)
+    def _fill_nas(self, X):
+        return X[self.column].fillna(self.fill_value)
+
+    def fit(self, X, y=None, **fit_params):
+        col = self._fill_nas(X)
+        return super(FillEncoderBinarizer, self).fit(col)
 
     def transform(self, X, y=None):
-        col = X['risk_factor'].fillna(self.fill_value)
-        return super(RiskFactorEncoder, self).fit(col)
+        col = self._fill_nas(X)
+        return super(FillEncoderBinarizer, self).transform(col)
 
     def fit_transform(self, X, y=None, **fit_params):
-        col = X['risk_factor'].fillna(self.fill_value)
-        return super(RiskFactorEncoder, self).fit_transform(col)
+        col = self._fill_nas(X)
+        super(FillEncoderBinarizer, self).fit_transform(col)
+
+
+def allfeatures_001():
+    train = classes.get_train_data()
+    copy = ColumnExtractor(['group_size', 'homeowner', 'car_age', 'age_oldest', 'age_youngest', 'married_couple'])
+    day = DayTransformer()
+    state = StateTransformer()
+    car_val = FillEncoderBinarizer('car_value', 'z')
+    risk_factor = FillEncoderBinarizer('risk_factor', 0)
+    c_prev = FillEncoderBinarizer('C_previous', 0)
+    c_dur = FillEncoderBinarizer('duration_previous', -1)
+
+    features = FeatureUnion([
+        ('copy', copy),
+        ('day', day),
+        ('state', state),
+        ('car_val', car_val),
+        ('risk_factor', risk_factor),
+        ('c_prev', c_prev),
+        ('c_dur', c_dur)
+    ])
+
+    pipeline = Pipeline([
+        ('filter', LastShoppingPointSelector()),
+        ('features', features)
+    ])
+
+    train_x = pipeline.fit_transform(train)

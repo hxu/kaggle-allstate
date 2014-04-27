@@ -168,21 +168,30 @@ def score_df(prediction, actual):
     Does a join on two data frames using customer_ID and checks if the plans are the same.
     Probably paranoid, but just in case the customer_IDs somehow get out of order
     """
-    merged = pd.merge(prediction, actual, on='customer_ID', suffixes=('_p', '_a'))
-    return accuracy_score(merged['plan_a'], merged['plan_p'])
+    if 'customer_ID' in prediction and 'customer_ID' in actual:
+        merged = pd.merge(prediction, actual, on='customer_ID', suffixes=('_p', '_a'))
+        return accuracy_score(merged['plan_a'], merged['plan_p'])
+    else:
+        return accuracy_score(prediction['plan'], actual['plan'])
 
 
 def col_score_df(prediction, actual):
     """
     Same as score_df, but expects cols A-E
     """
-    merged = pd.merge(prediction, actual, on='customer_ID', suffixes=('_p', '_a'))
     cols = 'ABCDEFG'
     scores = []
-    for c in cols:
-        this_score = accuracy_score(merged[c + '_a'], merged[c + '_p'])
-        logger.info("Feature {}, score {}".format(c, this_score))
-        scores.append((c, this_score))
+    if 'customer_ID' in prediction and 'customer_ID' in actual:
+        merged = pd.merge(prediction, actual, on='customer_ID', suffixes=('_p', '_a'))
+        for c in cols:
+            this_score = accuracy_score(merged[c + '_a'], merged[c + '_p'])
+            logger.info("Feature {}, score {}".format(c, this_score))
+            scores.append((c, this_score))
+    else:
+        for c in cols:
+            this_score = accuracy_score(prediction[c], actual[c])
+            logger.info("Feature {}, score {}".format(c, this_score))
+            scores.append((c, this_score))
     return scores
 
 
@@ -275,7 +284,7 @@ class MultiColLabelBinarizer(BaseEstimator, TransformerMixin):
         self.binarizers_ = []
         for col in X.columns:
             binarizer = LabelBinarizer(self.neg_label, self.pos_label)
-            binarizer.fit(X[col])
+            binarizer.fit(X[col].values)
             self.binarizers_.append((col, binarizer))
         return self
 
@@ -285,7 +294,7 @@ class MultiColLabelBinarizer(BaseEstimator, TransformerMixin):
 
         res = []
         for col, binarizer in self.binarizers_:
-            res.append(binarizer.transform(X[col]))
+            res.append(binarizer.transform(X[col].values))
 
         return np.hstack(res)
 

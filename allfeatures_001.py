@@ -5,6 +5,7 @@ We'll take the features from the last shopping point and encode them one by one 
 """
 from __future__ import division
 from sklearn.base import BaseEstimator, TransformerMixin
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.pipeline import Pipeline, FeatureUnion
 from sklearn.preprocessing import LabelBinarizer, LabelEncoder, OneHotEncoder
 import classes
@@ -109,6 +110,23 @@ class FillEncoderBinarizer(classes.EncoderBinarizer):
         return super(FillEncoderBinarizer, self).fit_transform(col)
 
 
+class LastObservedPlan(classes.MultiColLabelBinarizer):
+    """
+    Extracts and binarizers the plan features
+    """
+    def __init__(self, plans='ABCDEFG'):
+        super(LastObservedPlan, self).__init__()
+        self.plans = list(plans.upper())
+
+    def fit(self, X, y=None):
+        cols = X[self.plans]
+        return super(LastObservedPlan, self).fit(cols)
+
+    def transform(self, X, y=None):
+        cols = X[self.plans]
+        return super(LastObservedPlan, self).transform(cols)
+
+
 def allfeatures_001():
     train = classes.get_train_data()
     copy = ColumnExtractor(['group_size', 'homeowner', 'car_age', 'age_oldest', 'age_youngest', 'married_couple'])
@@ -118,6 +136,7 @@ def allfeatures_001():
     risk_factor = FillEncoderBinarizer('risk_factor', 0)
     c_prev = FillEncoderBinarizer('C_previous', 0)
     c_dur = FillEncoderBinarizer('duration_previous', -1)
+    last_plan = LastObservedPlan()
 
     features = FeatureUnion([
         ('copy', copy),
@@ -126,7 +145,8 @@ def allfeatures_001():
         ('car_val', car_val),
         ('risk_factor', risk_factor),
         ('c_prev', c_prev),
-        ('c_dur', c_dur)
+        ('c_dur', c_dur),
+        # ('last_plan', last_plan)
     ])
 
     pipeline = Pipeline([
@@ -134,6 +154,22 @@ def allfeatures_001():
         ('features', features)
     ])
 
+    train, test = classes.train_test_split(train)
     train_x = pipeline.fit_transform(train)
     train_y = classes.split_plan(classes.get_actual_plan(train))
+    y_encoder = classes.MultiColLabelBinarizer()
+    y = y_encoder.fit_transform(train_y[list('ABCDEFG')])
 
+    # Just on one col
+    est = ExtraTreesClassifier(n_estimators=100, verbose=3)
+    est.fit(train_x, y)
+
+    actuals = classes.split_plan(classes.get_actual_plan(test))
+    test_x = classes.truncate(test)
+    test_x = pipeline.transform(test_x)
+    pred = classes.concatenate_plan(y_encoder.inverse_transform(est.predict(test_x)))
+
+    score = classes.score_df(pred, actuals)
+    scores = classes.col_score_df(pred, actuals)
+    # Overall score is .5353, which is worse than benchmark.
+    # a few columns appear to be slightly better than the benchmark, but could be due to randomness

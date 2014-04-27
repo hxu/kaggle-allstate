@@ -2,7 +2,7 @@ from __future__ import division
 import logging
 import pandas as pd
 import numpy as np
-from sklearn.base import BaseEstimator
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.cross_validation import ShuffleSplit
 from sklearn.metrics import accuracy_score
 from sklearn.pipeline import Pipeline
@@ -255,3 +255,49 @@ class EncoderBinarizer(Pipeline):
             ('encode', FixLabelEncoder()),
             ('binarize', FixLabelBinarizer())
         ])
+
+
+class MultiColLabelBinarizer(BaseEstimator, TransformerMixin):
+    """
+    LabelBinarizer only works with a single column at a time.  This class does LabelBinarization on
+    multiple columns in a data frame and concatenates the results
+
+    Also, OneHotEncoder doesn't seem to easily do reverse transformations
+    """
+    def __init__(self, neg_label=0, pos_label=1):
+        self.neg_label = neg_label
+        self.pos_label = pos_label
+
+    def fit(self, X, y=None):
+        if not isinstance(X, pd.DataFrame):
+            raise RuntimeError("Only works with DataFrames.  Got {}".format(X.__class__))
+
+        self.binarizers_ = []
+        for col in X.columns:
+            binarizer = LabelBinarizer(self.neg_label, self.pos_label)
+            binarizer.fit(X[col])
+            self.binarizers_.append((col, binarizer))
+        return self
+
+    def transform(self, X, y=None):
+        if not isinstance(X, pd.DataFrame):
+            raise RuntimeError("Only works with DataFrames.  Got {}".format(X.__class__))
+
+        res = []
+        for col, binarizer in self.binarizers_:
+            res.append(binarizer.transform(X[col]))
+
+        return np.hstack(res)
+
+    def inverse_transform(self, y, threshold=None):
+        start = 0
+        res = []
+        cols = []
+        for col, binarizer in self.binarizers_:
+            n_cols = len(binarizer.classes_) if len(binarizer.classes_) > 2 else 1
+            this_r = binarizer.inverse_transform(y[:, start:start+n_cols]).reshape((y.shape[0], 1))
+            res.append(this_r)
+            cols.append(col)
+            start += n_cols
+
+        return pd.DataFrame(np.hstack(res), columns=cols)

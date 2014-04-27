@@ -6,7 +6,7 @@ We'll take the features from the last shopping point and encode them one by one 
 from __future__ import division
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.pipeline import Pipeline, FeatureUnion
-from sklearn.preprocessing import LabelBinarizer, LabelEncoder
+from sklearn.preprocessing import LabelBinarizer, LabelEncoder, OneHotEncoder
 import classes
 import numpy as np
 import pandas as pd
@@ -31,14 +31,11 @@ class DayTransformer(LabelBinarizer):
     """
     Uses label binarizer on the day column only
     """
-    def fit(self, X):
+    def fit(self, X, y=None):
         return super(DayTransformer, self).fit(X['day'])
 
-    def transform(self, X):
+    def transform(self, X, y=None):
         return super(DayTransformer, self).transform(X['day'])
-
-    def fit_transform(self, X, y=None, **fit_params):
-        return super(DayTransformer, self).fit_transform(X['day'])
 
 
 class StateTransformer(classes.EncoderBinarizer):
@@ -109,7 +106,7 @@ class FillEncoderBinarizer(classes.EncoderBinarizer):
 
     def fit_transform(self, X, y=None, **fit_params):
         col = self._fill_nas(X)
-        super(FillEncoderBinarizer, self).fit_transform(col)
+        return super(FillEncoderBinarizer, self).fit_transform(col)
 
 
 def allfeatures_001():
@@ -138,3 +135,5 @@ def allfeatures_001():
     ])
 
     train_x = pipeline.fit_transform(train)
+    train_y = classes.split_plan(classes.get_actual_plan(train))
+

@@ -9,7 +9,9 @@ Some possible approaches:
  - Some plan options appear to be correlated.  Maybe use some option choices to predict others?
  - Stratified model - Build a model for each group of plans that have the same number of shopping points
  - Build a model to predict which shopping point to use as the prediction instead of predicting the plan
-
+ - The last observed plan tended to predict much lower occurence of 'common' plan combinations.  Maybe replace LOP with 'close' (as measured by a distance along the lines of string similarity, like the levenstein distance) alternatives that occur more frequently if the LOP is sufficiently rare? (I tried to pick the most common plan a user looked at, but that underperformed LOP)
+- After skimming over cases that LOP failed on(although I didn't do the opposite; might get around to it), there might be a pattern to it: user looks at, say, 111111, and then 111112, which is more expensive, but picks 11111.
+-In that vein, maybe we should have been trying to learn general patterns: i.e., both [123 123 124] [124] and [124 124 123] [123] are identical patterns(where the second [] represents the chosen option. We would need to keep customer specific map to a element in the pattern.  
 Some questions to explore:
 
  - How large is the variation in error rates for each plan feature?
